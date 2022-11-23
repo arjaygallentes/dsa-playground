@@ -82,15 +82,12 @@ class GroupExpense {
         });
 
         return processedTxs;
-
-        // console.log(`transaction completed. \n`);
     }
 
     private AddToTransactionCompleted(txs: DebitTransaction[], tx: DebitTransaction, creditTo: number) {
         let debitTx = new DebitTransaction(tx.userId, tx.amount);
         debitTx.creditToUserId = creditTo;
 
-        // console.log(`person ${tx.userId} owes person ${tx.creditToUserId} $${tx.amount}`);
         txs.push(debitTx); 
     }
 }
@@ -143,4 +140,5 @@ function heap_oop_split_bills(arr: number[]) {
     groupExpense.createTransactions();
 }
 
-heap_oop_split_bills([0, 12, 12]);
+// heap_oop_split_bills([0, 12, 12]);
+// heap_oop_split_bills([10, 4, 4, 5, 10, 25, 35, 50, 0, 2]);

@@ -54,3 +54,5 @@ function using_heap_old_version(expenses: Array<number>): void {
         }
     }
 }
+
+// using_heap_old_version([10, 4, 4, 5, 10, 25, 35, 50, 0, 2]);

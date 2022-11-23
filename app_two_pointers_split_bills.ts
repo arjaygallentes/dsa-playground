@@ -40,6 +40,5 @@ function calculateGroupBillShares(billsPaid: number[]): number[][] {
         .sort((a, b) => a[1] - b[1]);
 }
 
-two_pointers_split_bills([0, 12, 12]);
+// two_pointers_split_bills([0, 12, 12]);
 // two_pointers_split_bills([10, 4, 4, 5, 10, 25, 35, 50, 0, 2]);
-// two_pointers_split_bills([10, 4, 4, 5, 10, 25, 35, 50, 0, 2, 1, 0, 100, 65, 2, 10, 11, 15, 20, 100, 35, 20, 12, 10, 1]);
