@@ -5,9 +5,25 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
-    <script src="mod_using_heap_oldversion.js"></script>
-    <script src="mod_two_pointers_split_bills.js"></script>
-    <script src="heap_oop_split_bills.js"></script>
+    <script>var exports = {};</script>
+    <script src="https://unpkg.com/js-sdsl/dist/umd/js-sdsl.min.js"></script>
+    <script>
+      const {
+        Vector,
+        Stack,
+        Queue,
+        LinkList,
+        Deque,
+        PriorityQueue,
+        OrderedSet,
+        OrderedMap,
+        HashSet,
+        HashMap
+      } = sdsl;
+  </script>
+    <script type="module" src="./built/src/app_heap_oldversion.js"></script>
+    <script type="module" src="./built/src/app_two_pointers_split_bills.js"></script>
+    <script type="module" src="./built/src/heap_oop_split_bills.js"></script>
   </head>
   <body></body>
 </html>

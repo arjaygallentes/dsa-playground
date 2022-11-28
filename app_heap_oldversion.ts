@@ -1,38 +1,38 @@
-import Heap from 'heap-js';
-import { Expense } from "./model";
+import { Expense } from './lib';
+import { PriorityQueue } from 'js-sdsl';
 
-const DebtPriorityComparator = (a: Expense, b: Expense) => a.amount - b.amount; // priority by highest debt
-const CreditPriorityComparator = (a: Expense, b: Expense) => b.amount - a.amount; // priority by highest credit
-
-let _minHeapDebt: Heap<Expense> = new Heap(DebtPriorityComparator);
-let _maxHeapCredit: Heap<Expense> = new Heap(CreditPriorityComparator);
+let debtQ: PriorityQueue<Expense>;
+let creditQ: PriorityQueue<Expense>;
 
 function using_heap_old_version(expenses: Array<number>): void {
     console.log(`no. of persons ${expenses.length}`);
 
     // get total
-    let sum: number = expenses.reduce((x, y) => x + y);
+    let sum: number = expenses.reduce((x, y) => x + y); 
 
     // get average
     let averageBillToPay = sum / expenses.length;
 
-    let idx: number = 0;
-    expenses.forEach(bill => {
-        const netChangeAmount = bill - averageBillToPay;
+    // Add index
+    let arrIndexed = expenses.map((e, idx) => [idx + 1, e]);
 
-        if (netChangeAmount > 0) {
-            _maxHeapCredit.push(new Expense(bill, (idx + 1), netChangeAmount));
-        } else if (netChangeAmount < 0) {
-            _minHeapDebt.push(new Expense(bill, (idx + 1), netChangeAmount));
-        }
+    creditQ = new PriorityQueue<Expense>(arrIndexed.filter(x => (x[1] - averageBillToPay) > 0)
+        .map(e => {
+            const expense = new Expense(e[1], e[0]);
+            expense.amount = e[1] - averageBillToPay;
+        return expense;
+    }, (a: Expense, b: Expense) => b.amount - a.amount));
 
-        idx++;
-    });
+    debtQ = new PriorityQueue<Expense>(arrIndexed.filter(x => (x[1] - averageBillToPay) < 0)
+        .map(e => {
+            const expense = new Expense(e[1], e[0]);
+            expense.amount = e[1] - averageBillToPay;
+        return expense;
+    }, (a: Expense, b: Expense) => a.amount - b.amount));
 
-    while (!_minHeapDebt.isEmpty() && !_maxHeapCredit.isEmpty()) {
-        const debit = _minHeapDebt.pop();
-        const credit = _maxHeapCredit.pop();
-
+    while (!debtQ.empty() && !creditQ.empty()) {
+        const debit = debtQ.pop();
+        const credit = creditQ.pop();
         if (debit && credit) {
             const debitAmount = debit.amount;
             const creditAmount = credit.amount;
@@ -44,15 +44,16 @@ function using_heap_old_version(expenses: Array<number>): void {
             debit.amount += netChangeAmount;
             credit.amount -= netChangeAmount;
 
-            if (debitAmount !== 0) {
-                _minHeapDebt.add(debit);
+            if (debit.amount !== 0) { 
+                debtQ.push(debit); 
             }
 
             if (credit.amount !== 0) {
-                _maxHeapCredit.add(credit);
+                creditQ.push(credit);
             }
         }
     }
 }
 
+// using_heap_old_version([0, 12, 12]);
 // using_heap_old_version([10, 4, 4, 5, 10, 25, 35, 50, 0, 2]);

@@ -11,16 +11,23 @@
 // person 1 needs to pay person 2 $4
 // person 1 needs to pay person 3 $4
 
-// import { two_pointers_split_bills, calculateGroupBillShares } from "./mod_two_pointers_split_bills"
-// import { using_heap_old_version } from "./mod_using_heap_oldversion"
-import { Expense, Transaction, DebitTransaction, CreditTransaction, NullTransaction, AccountBalance, ITransactionManager, AccountBalanceRepository, ITransaction } from './model';
+import { Expense, DebitTransaction, ITransactionManager, ITransaction, GroupExpenseSharingType } from './lib';
 import { CreditTransactionManager, DebitTransactionManager } from './lib';
 
-class GroupExpense {
+type SumAndAverage = {
+    sum: number;
+    average: number;
+};
+export class GroupExpense {
     private _expenses: Expense[];
     private _sum: number;
     private _transactionManager: TransactionProcessManager;
-    private _processedTransactions: Transaction[] = [];
+    private _sharingType: GroupExpenseSharingType;
+    private _average: number;
+
+    get expenseSharingType() {
+        return this._sharingType;
+    }
 
     get expenses() {
         return this._expenses;
@@ -31,7 +38,7 @@ class GroupExpense {
     }
 
     get average() {
-        return this.sum / this._expenses.length;
+        return this._average;
     }
 
     constructor(transactionManager: TransactionProcessManager) {
@@ -40,55 +47,62 @@ class GroupExpense {
         this._transactionManager = transactionManager;
     }
 
-    public addExpense(expense: Expense): void {
-        this._sum += expense.amountPaid;
+    // Can be use to decouple sharing type/strategy
+    // constructor(transactionManager: TransactionProcessManager, sharingType: GroupExpenseSharingType) {
+    //     this._expenses = [];
+    //     this._sum = 0;
+    //     this._sharingType = sharingType;
+    // this._transactionManager = transactionManager;
+    // }
 
+    public addExpense(expense: Expense): void {
+        console.log(`person ${expense.paidBy} paid $${expense.amountPaid}`);
         this._expenses.push(expense);
     }
 
-    public createTransactions(): DebitTransaction[] {
-        console.log("sum is: " + this.sum);
-        console.log("average is: " + this.average);
+    public *debits(): Iterable<ITransaction> {
+        this.createTxs();
 
-        this._expenses.forEach(expense => {
-            const debitOrCreditAmount = expense.amountPaid - this.average;
-            const isDebit = debitOrCreditAmount < 0;
-
-            console.log(`person ${expense.paidBy} paid $${expense.amountPaid}`);
-            this._transactionManager.create(isDebit).createTransaction(expense.paidBy, debitOrCreditAmount)
-        });
-
-        console.log(`\ntransaction started.`);
-        return this.createOptimized();
+        yield* this.getDebits();
     }
 
-    private createOptimized(): DebitTransaction[]  {
-        let processedTxs: DebitTransaction[] = [];
+    private createTxs() {
+        const sumAndAverage: SumAndAverage = this.getTotalAndAverage();
+
+        for (const expense of this._expenses) {
+            const debitOrCreditAmount = expense.amountPaid - sumAndAverage.average;
+            const isDebit = debitOrCreditAmount < 0;
+            this._transactionManager.create(isDebit).createTransaction(expense.paidBy, debitOrCreditAmount);
+        }
+    }
+
+    private *getDebits(): Iterable<ITransaction> {
         while (this._transactionManager.hasTransaction()) {
             const debitTransaction = this._transactionManager.TakeDebit();
             const creditTransaction = this._transactionManager.TakeCredit();
 
             let debt = Math.min(-debitTransaction.amount, creditTransaction.amount);
 
-            const tx = debitTransaction as DebitTransaction;
-            tx.creditToUserId = creditTransaction.userId;
-            this.AddToTransactionCompleted(processedTxs, tx, tx.creditToUserId);
-            
-            this._transactionManager.applyDebitOrCredit(debt);
+            let debitTx = new DebitTransaction(debitTransaction.userId, debt);
+            debitTx.creditToUserId = creditTransaction.userId;
+
+            this._transactionManager.applyDebitAndCredit(debt);
+
+            yield debitTx;
         }
-
-        processedTxs.forEach(tx => {
-            console.log(`person ${tx.userId} owes person ${(tx as DebitTransaction).creditToUserId} $${tx.amount}`);
-        });
-
-        return processedTxs;
     }
 
-    private AddToTransactionCompleted(txs: DebitTransaction[], tx: DebitTransaction, creditTo: number) {
-        let debitTx = new DebitTransaction(tx.userId, tx.amount);
-        debitTx.creditToUserId = creditTo;
+    private getTotalAndAverage() {   
+        const sumAndAverage: SumAndAverage = this._expenses.reduce((prev: SumAndAverage, curr: Expense, idx) => {
+            return { sum: prev.sum + curr.amountPaid, average: prev.average + (curr.amountPaid - prev.average) / (idx + 1) };
+        }, { sum: 0, average: 0 });
 
-        txs.push(debitTx); 
+        this._sum = sumAndAverage.sum;
+        this._average = sumAndAverage.average;
+
+        console.log("sum " + sumAndAverage.sum);
+        console.log("ave " + sumAndAverage.average);
+        return sumAndAverage;
     }
 }
 
@@ -109,7 +123,7 @@ class TransactionProcessManager {
         return this._debitTxManager.TakeOne();
     }
 
-    public applyDebitOrCredit(transactionAmount: number) {
+    public applyDebitAndCredit(transactionAmount: number) {
         this._debitTxManager.applyAmount(transactionAmount);
         this._creditTxManager.applyAmount(transactionAmount);
     }
@@ -128,17 +142,40 @@ class TransactionProcessManager {
     }
 }
 
-function heap_oop_split_bills(arr: number[]) {
+function heap_oop_split_bills(arr: number[]): GroupExpense {
     const groupExpense = new GroupExpense(new TransactionProcessManager(new DebitTransactionManager(), new CreditTransactionManager()));
 
     let idx = 0;
     arr.forEach(expense => {
         idx++;
-        groupExpense.addExpense(new Expense(expense, idx, 0));
+        groupExpense.addExpense(new Expense(expense, idx));
     });
 
-    groupExpense.createTransactions();
+    for (const tx of groupExpense.debits()) {
+        console.log(`person ${tx.userId} owes person ${(tx as DebitTransaction).creditToUserId} $${tx.amount}`);
+    }
+    
+    return groupExpense;
 }
 
+// const expenses = generateData(1000, 4, 10);     
+// let result: GroupExpense = heap_oop_split_bills(expenses); 
+// debitSuccess(result, expenses); 
+ 
+// function debitSuccess(result: GroupExpense, parts: number[]) {
+//     let debits: DebitTransaction[] = Array.from(result.debits() as DebitTransaction[]);
+//     let successfullyDebited = false;
+//     successfullyDebited = parts.map((shares, idx) => checkIfAmountDebitIsCorrect(result, debits, idx, shares)).reduce(x => x);
+//     return successfullyDebited;
+// }
+
+// function checkIfAmountDebitIsCorrect(result: GroupExpense, debits: DebitTransaction[], idx: number, shares: number): boolean {
+//     let totalDebits = debits.filter(x => x.userId === idx + 1 && x.amount > 0, 0).map(x => x.amount).reduce((a, b) => a + b, 0);
+//     // Average - Debit should be equal to the amount paid/shared 
+//     return (totalDebits == 0 || result.average - totalDebits == shares);
+// }
+
 // heap_oop_split_bills([0, 12, 12]);
+
+// heap_oop_split_bills([29, 55, 12, 3, 1])
 // heap_oop_split_bills([10, 4, 4, 5, 10, 25, 35, 50, 0, 2]);

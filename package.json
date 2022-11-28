@@ -29,7 +29,7 @@
     "typescript": "^4.9.3"
   },
   "dependencies": {
-    "heap-js": "^2.2.0",
+    "js-sdsl": "^4.2.0",
     "modclean": "^3.0.0-beta.1"
   }
 }
